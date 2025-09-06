@@ -32,12 +32,10 @@ def send_booking():
     # Generate a unique appointment ID
     appointment_id = str(uuid.uuid4()).split("-")[0].upper()
 
-    # -------------------------
-    # Email setup
-    # -------------------------
-    sender_email = "arnavp128@gmail.com"
-    sender_password = "cyhy ppki rdny rjwc"
-    admin_email = "arnavpundir22@gmail.com"
+    # Email setup (from ENV for security)
+    sender_email = os.getenv("SENDER_EMAIL", "arnavp128@gmail.com")
+    sender_password = os.getenv("SENDER_PASSWORD", "cyhy ppki rdny rjwc")
+    admin_email = os.getenv("ADMIN_EMAIL", "arnavpundir22@gmail.com")
 
     body = f"""
     <html>
@@ -80,8 +78,7 @@ def send_booking():
             server.sendmail(sender_email, admin_email, msg_admin.as_string())
             server.sendmail(sender_email, email, msg_user.as_string())
 
-        # -------------------------
-        # 3️⃣ Save to Excel
+        # Save to Excel
         excel_file = "bookings.xlsx"
         if os.path.exists(excel_file):
             wb = load_workbook(excel_file)
@@ -89,18 +86,92 @@ def send_booking():
         else:
             wb = Workbook()
             ws = wb.active
-            # Add headers
             ws.append(["Appointment ID", "Provider", "Customer Name", "Email", "Phone", "Service", "Job", "Date", "Time", "Location"])
 
         ws.append([appointment_id, provider, name, email, phone, service, job, date, time, location])
         wb.save(excel_file)
 
-        # -------------------------
-        # Return success
         return jsonify({
             "success": True,
             "appointment_id": appointment_id,
             "message": f"✅ Booking Confirmed! Your Appointment ID is {appointment_id}"
+        })
+
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
+
+# -------------------------
+# 3️⃣ Route for Contact Us
+# -------------------------
+@app.route("/contact-us", methods=["POST"])
+def contact_us():
+    data = request.json
+    name = data.get("name")
+    email = data.get("email")
+    subject = data.get("subject", "No Subject")
+    message = data.get("message", "")
+
+    # Generate a unique token number
+    token_no = "CONTACT-" + str(uuid.uuid4()).split("-")[0].upper()
+
+    # Email setup
+    sender_email = os.getenv("SENDER_EMAIL", "arnavp128@gmail.com")
+    sender_password = os.getenv("SENDER_PASSWORD", "your-app-password")
+    admin_email = os.getenv("ADMIN_EMAIL", "arnavpundir22@gmail.com")
+
+    body = f"""
+    <html>
+        <body>
+            <h2 style="color:#047857;">New Contact Request!</h2>
+            <p><strong>Token No:</strong> <span style="color:#DC2626;">{token_no}</span></p>
+            <p><strong>Name:</strong> {name}</p>
+            <p><strong>Email:</strong> {email}</p>
+            <p><strong>Subject:</strong> {subject}</p>
+            <p><strong>Message:</strong><br/>{message}</p>
+            <hr/>
+            <p style="color:gray;">This is an automated contact notification.</p>
+        </body>
+    </html>
+    """
+
+    try:
+        # --- Send to admin ---
+        msg_admin = MIMEMultipart()
+        msg_admin["Subject"] = f"Contact Request from {name} (Token: {token_no})"
+        msg_admin["From"] = sender_email
+        msg_admin["To"] = admin_email
+        msg_admin.attach(MIMEText(body, "html"))
+
+        # --- Send copy to user ---
+        msg_user = MIMEMultipart()
+        msg_user["Subject"] = f"Your Contact Request (Token: {token_no})"
+        msg_user["From"] = sender_email
+        msg_user["To"] = email
+        msg_user.attach(MIMEText(body, "html"))
+
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(sender_email, sender_password)
+            server.sendmail(sender_email, admin_email, msg_admin.as_string())
+            server.sendmail(sender_email, email, msg_user.as_string())
+
+        # Save to Excel
+        excel_file = "contacts.xlsx"
+        if os.path.exists(excel_file):
+            wb = load_workbook(excel_file)
+            ws = wb.active
+        else:
+            wb = Workbook()
+            ws = wb.active
+            ws.append(["Token No", "Name", "Email", "Subject", "Message"])
+
+        ws.append([token_no, name, email, subject, message])
+        wb.save(excel_file)
+
+        return jsonify({
+            "success": True,
+            "token_no": token_no,
+            "message": f"📩 Contact request submitted! Your Token No is {token_no}"
         })
 
     except Exception as e:
@@ -113,4 +184,5 @@ def send_booking():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
 
