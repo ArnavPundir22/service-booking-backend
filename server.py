@@ -21,7 +21,8 @@ def send_booking():
     data = request.json
     name = data.get("name")
     email = data.get("email")
-    phone = data.get("phone")
+    phone = data.get("phone")               # Contact No.
+    whatsapp = data.get("whatsapp")         # WhatsApp No.
     service = data.get("service")
     date = data.get("date")
     time = data.get("time")
@@ -47,7 +48,8 @@ def send_booking():
             <p><strong>Service Provider:</strong> {provider}</p>
             <p><strong>Customer Name:</strong> {name}</p>
             <p><strong>Email:</strong> {email}</p>
-            <p><strong>Phone:</strong> {phone}</p>
+            <p><strong>Contact No.:</strong> {phone}</p>
+            <p><strong>WhatsApp No.:</strong> {whatsapp}</p>
             <p><strong>Service:</strong> {service}</p>
             <p><strong>Job Description:</strong> {job}</p>
             <p><strong>Date & Time:</strong> {date} at {time}</p>
@@ -90,9 +92,16 @@ def send_booking():
             wb = Workbook()
             ws = wb.active
             # Add headers
-            ws.append(["Appointment ID", "Provider", "Customer Name", "Email", "Phone", "Service", "Job", "Date", "Time", "Location"])
+            ws.append([
+                "Appointment ID", "Provider", "Customer Name", "Email",
+                "Contact No.", "WhatsApp No.", "Service", "Job",
+                "Date", "Time", "Location"
+            ])
 
-        ws.append([appointment_id, provider, name, email, phone, service, job, date, time, location])
+        ws.append([
+            appointment_id, provider, name, email,
+            phone, whatsapp, service, job, date, time, location
+        ])
         wb.save(excel_file)
 
         # -------------------------
