@@ -38,7 +38,7 @@ def send_booking():
     # -------------------------
     sender_email = "arnavp128@gmail.com"
     sender_password = "cyhy ppki rdny rjwc"
-    admin_email = "arnavpundir22@gmail.com"
+    admin_email = "sevasetu.services@gmail.com"
 
     body = f"""
     <html>
