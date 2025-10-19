@@ -57,6 +57,7 @@ def send_booking():
             <hr/>
             <p style="color:gray;">You will be contacted shortly for service charges and payment proceeding...</p>
             <p style="color:gray;">This is an automated booking notification.</p>
+            <p style="color:gray;">For any query, contact us at <b>sevasetu.services@gmial.com</b></p>
         </body>
     </html>
     """
