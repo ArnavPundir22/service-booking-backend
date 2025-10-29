@@ -1,9 +1,11 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 import uuid
 import os
 from openpyxl import Workbook, load_workbook
-import requests
 
 # -------------------------
 # 1️⃣ Create Flask app
@@ -12,36 +14,15 @@ app = Flask(__name__)
 CORS(app)
 
 # -------------------------
-# 2️⃣ Send Email Function using Brevo API
-# -------------------------
-def send_email(recipient_email, subject, html_content):
-    url = "https://api.brevo.com/v3/smtp/email"
-    headers = {
-        "accept": "application/json",
-        "api-key": os.getenv("BREVO_API_KEY"),
-        "content-type": "application/json"
-    }
-    data = {
-        "sender": {"name": "SevaSetu Services", "email": "sevasetu.services@gmail.com"},
-        "to": [{"email": recipient_email}],
-        "subject": subject,
-        "htmlContent": html_content
-    }
-
-    response = requests.post(url, headers=headers, json=data)
-    print("📨 Email response:", response.status_code, response.text)
-    return response.status_code in [200, 201]
-
-# -------------------------
-# 3️⃣ Route for booking
+# 2️⃣ Route for booking
 # -------------------------
 @app.route("/send-booking", methods=["POST"])
 def send_booking():
     data = request.json
     name = data.get("name")
     email = data.get("email")
-    phone = data.get("phone")
-    whatsapp = data.get("whatsapp")
+    phone = data.get("phone")               # Contact No.
+    whatsapp = data.get("whatsapp")         # WhatsApp No.
     service = data.get("service")
     date = data.get("date")
     time = data.get("time")
@@ -53,8 +34,12 @@ def send_booking():
     appointment_id = str(uuid.uuid4()).split("-")[0].upper()
 
     # -------------------------
-    # Email Content
+    # Email setup
     # -------------------------
+    sender_email = "arnavp128@gmail.com"
+    sender_password = "cyhy ppki rdny rjwc"
+    admin_email = "sevasetu.services@gmail.com"
+
     body = f"""
     <html>
         <body>
@@ -68,25 +53,38 @@ def send_booking():
             <p><strong>Service:</strong> {service}</p>
             <p><strong>Job Description:</strong> {job}</p>
             <p><strong>Date & Time:</strong> {date} at {time}</p>
-            <p><strong>Location:</strong> {location}</p>
+            <p><strong>Location:</strong> <span style="color:#1E40AF;">{location}</span></p>
             <hr/>
             <p style="color:gray;">You will be contacted shortly for service charges and payment proceeding...</p>
             <p style="color:gray;">This is an automated booking notification.</p>
-            <p style="color:gray;">For any query, contact us at <b>sevasetu.services@gmail.com</b></p>
+            <p style="color:gray;">For any query, contact us at <b>sevasetu.services@gmial.com</b></p>
         </body>
     </html>
     """
 
     try:
-        # -------------------------
-        # Send Emails via Brevo
-        # -------------------------
-        send_email("sevasetu.services@gmail.com", f"New Booking: {service} by {name}", body)
-        send_email(email, f"Your Appointment Confirmation (ID: {appointment_id})", body)
+        # --- Send to admin ---
+        msg_admin = MIMEMultipart()
+        msg_admin["Subject"] = f"New Booking: {service} by {name} (ID: {appointment_id})"
+        msg_admin["From"] = sender_email
+        msg_admin["To"] = admin_email
+        msg_admin.attach(MIMEText(body, "html"))
+
+        # --- Send copy to user ---
+        msg_user = MIMEMultipart()
+        msg_user["Subject"] = f"Your Appointment Confirmation (ID: {appointment_id})"
+        msg_user["From"] = sender_email
+        msg_user["To"] = email
+        msg_user.attach(MIMEText(body, "html"))
+
+        # --- Send emails ---
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(sender_email, sender_password)
+            server.sendmail(sender_email, admin_email, msg_admin.as_string())
+            server.sendmail(sender_email, email, msg_user.as_string())
 
         # -------------------------
-        # Save to Excel
-        # -------------------------
+        # 3️⃣ Save to Excel
         excel_file = "bookings.xlsx"
         if os.path.exists(excel_file):
             wb = load_workbook(excel_file)
@@ -94,6 +92,7 @@ def send_booking():
         else:
             wb = Workbook()
             ws = wb.active
+            # Add headers
             ws.append([
                 "Appointment ID", "Provider", "Customer Name", "Email",
                 "Contact No.", "WhatsApp No.", "Service", "Job",
@@ -108,7 +107,6 @@ def send_booking():
 
         # -------------------------
         # Return success
-        # -------------------------
         return jsonify({
             "success": True,
             "appointment_id": appointment_id,
@@ -118,9 +116,11 @@ def send_booking():
     except Exception as e:
         return jsonify({"success": False, "message": str(e)})
 
+
 # -------------------------
-# Run Flask App
+# Run the Flask app
 # -------------------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+~
