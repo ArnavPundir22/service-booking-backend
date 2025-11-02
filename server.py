@@ -13,7 +13,7 @@ CORS(app)
 # -------------------------
 # Resend API Config
 # -------------------------
-RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
+RESEND_API_KEY = "re_Abdk5sTF_D4pzexty58ES13XFLw9SftZU"
 RESEND_URL = "https://api.resend.com/emails"
 
 # -------------------------
