@@ -1,11 +1,8 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import requests
 import uuid
 import os
-from openpyxl import Workbook, load_workbook
 
 # -------------------------
 # 1️⃣ Create Flask app
@@ -14,15 +11,21 @@ app = Flask(__name__)
 CORS(app)
 
 # -------------------------
-# 2️⃣ Route for booking
+# 2️⃣ Brevo API Key
+# -------------------------
+BREVO_API_KEY = "xjFLhnoTdNlURDQvQk"  # replace with your actual Brevo API key
+BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
+
+# -------------------------
+# 3️⃣ Route for booking
 # -------------------------
 @app.route("/send-booking", methods=["POST"])
 def send_booking():
     data = request.json
     name = data.get("name")
     email = data.get("email")
-    phone = data.get("phone")               # Contact No.
-    whatsapp = data.get("whatsapp")         # WhatsApp No.
+    phone = data.get("phone")
+    whatsapp = data.get("whatsapp")
     service = data.get("service")
     date = data.get("date")
     time = data.get("time")
@@ -30,19 +33,18 @@ def send_booking():
     location = data.get("location", "")
     provider = data.get("provider", "Not assigned")
 
-    # Generate a unique appointment ID
+    # Generate unique appointment ID
     appointment_id = str(uuid.uuid4()).split("-")[0].upper()
 
     # -------------------------
-    # Email setup
+    # Email content
     # -------------------------
-    sender_email = "arnavp128@gmail.com"
-    sender_password = "cyhy ppki rdny rjwc"
-    admin_email = "sevasetu.services@gmail.com"
+    subject_admin = f"New Booking: {service} by {name} (ID: {appointment_id})"
+    subject_user = f"Your Appointment Confirmation (ID: {appointment_id})"
 
-    body = f"""
+    html_content = f"""
     <html>
-        <body>
+        <body style="font-family: Arial, sans-serif;">
             <h2 style="color:#1E3A8A;">New Booking Received!</h2>
             <p><strong>Appointment ID:</strong> <span style="color:#DC2626;">{appointment_id}</span></p>
             <p><strong>Service Provider:</strong> {provider}</p>
@@ -53,72 +55,61 @@ def send_booking():
             <p><strong>Service:</strong> {service}</p>
             <p><strong>Job Description:</strong> {job}</p>
             <p><strong>Date & Time:</strong> {date} at {time}</p>
-            <p><strong>Location:</strong> <span style="color:#1E40AF;">{location}</span></p>
+            <p><strong>Location:</strong> {location}</p>
             <hr/>
             <p style="color:gray;">You will be contacted shortly for service charges and payment proceeding...</p>
-            <p style="color:gray;">This is an automated booking notification.</p>
-            <p style="color:gray;">For any query, contact us at <b>sevasetu.services@gmial.com</b></p>
+            <p style="color:gray;">This is an automated booking notification from <b>SevaSetu</b>.</p>
         </body>
     </html>
     """
 
+    # -------------------------
+    # 4️⃣ Send email via Brevo API
+    # -------------------------
+    headers = {
+        "accept": "application/json",
+        "api-key": BREVO_API_KEY,
+        "content-type": "application/json"
+    }
+
+    payload_admin = {
+        "sender": {"name": "SevaSetu", "email": "noreply@sevasetu.in"},
+        "to": [{"email": "sevasetu.services@gmail.com"}],
+        "subject": subject_admin,
+        "htmlContent": html_content
+    }
+
+    payload_user = {
+        "sender": {"name": "SevaSetu", "email": "noreply@sevasetu.in"},
+        "to": [{"email": email}],
+        "subject": subject_user,
+        "htmlContent": html_content
+    }
+
     try:
-        # --- Send to admin ---
-        msg_admin = MIMEMultipart()
-        msg_admin["Subject"] = f"New Booking: {service} by {name} (ID: {appointment_id})"
-        msg_admin["From"] = sender_email
-        msg_admin["To"] = admin_email
-        msg_admin.attach(MIMEText(body, "html"))
+        # Send to admin
+        res_admin = requests.post(BREVO_API_URL, json=payload_admin, headers=headers)
+        # Send to user
+        res_user = requests.post(BREVO_API_URL, json=payload_user, headers=headers)
 
-        # --- Send copy to user ---
-        msg_user = MIMEMultipart()
-        msg_user["Subject"] = f"Your Appointment Confirmation (ID: {appointment_id})"
-        msg_user["From"] = sender_email
-        msg_user["To"] = email
-        msg_user.attach(MIMEText(body, "html"))
-
-        # --- Send emails ---
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-            server.login(sender_email, sender_password)
-            server.sendmail(sender_email, admin_email, msg_admin.as_string())
-            server.sendmail(sender_email, email, msg_user.as_string())
-
-        # -------------------------
-        # 3️⃣ Save to Excel
-        excel_file = "bookings.xlsx"
-        if os.path.exists(excel_file):
-            wb = load_workbook(excel_file)
-            ws = wb.active
+        if res_admin.status_code == 201 and res_user.status_code == 201:
+            return jsonify({
+                "success": True,
+                "appointment_id": appointment_id,
+                "message": f"✅ Booking Confirmed! Your Appointment ID is {appointment_id}"
+            })
         else:
-            wb = Workbook()
-            ws = wb.active
-            # Add headers
-            ws.append([
-                "Appointment ID", "Provider", "Customer Name", "Email",
-                "Contact No.", "WhatsApp No.", "Service", "Job",
-                "Date", "Time", "Location"
-            ])
-
-        ws.append([
-            appointment_id, provider, name, email,
-            phone, whatsapp, service, job, date, time, location
-        ])
-        wb.save(excel_file)
-
-        # -------------------------
-        # Return success
-        return jsonify({
-            "success": True,
-            "appointment_id": appointment_id,
-            "message": f"✅ Booking Confirmed! Your Appointment ID is {appointment_id}"
-        })
+            return jsonify({
+                "success": False,
+                "message": f"Error from Brevo API: {res_admin.text or res_user.text}"
+            })
 
     except Exception as e:
         return jsonify({"success": False, "message": str(e)})
 
 
 # -------------------------
-# Run the Flask app
+# Run Flask App
 # -------------------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
