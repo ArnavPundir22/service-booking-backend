@@ -13,7 +13,7 @@ CORS(app)
 # -------------------------
 # 2️⃣ Brevo API Key
 # -------------------------
-BREVO_API_KEY = "xjFLhnoTdNlURDQvQk"  # replace with your actual Brevo API key
+BREVO_API_KEY = "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"  # replace with your actual Brevo API key
 BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 
 # -------------------------
