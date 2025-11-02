@@ -5,19 +5,19 @@ import uuid
 import os
 
 # -------------------------
-# 1️⃣ Create Flask app
+# Flask App
 # -------------------------
 app = Flask(__name__)
 CORS(app)
 
 # -------------------------
-# 2️⃣ Brevo API Key
+# Resend API Config
 # -------------------------
-BREVO_API_KEY = "bskp1lok4rE263H"  # replace with your actual Brevo API key
-BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
+RESEND_URL = "https://api.resend.com/emails"
 
 # -------------------------
-# 3️⃣ Route for booking
+# Booking Route
 # -------------------------
 @app.route("/send-booking", methods=["POST"])
 def send_booking():
@@ -33,12 +33,8 @@ def send_booking():
     location = data.get("location", "")
     provider = data.get("provider", "Not assigned")
 
-    # Generate unique appointment ID
     appointment_id = str(uuid.uuid4()).split("-")[0].upper()
 
-    # -------------------------
-    # Email content
-    # -------------------------
     subject_admin = f"New Booking: {service} by {name} (ID: {appointment_id})"
     subject_user = f"Your Appointment Confirmation (ID: {appointment_id})"
 
@@ -63,36 +59,30 @@ def send_booking():
     </html>
     """
 
-    # -------------------------
-    # 4️⃣ Send email via Brevo API
-    # -------------------------
     headers = {
-        "accept": "application/json",
-        "api-key": BREVO_API_KEY,
-        "content-type": "application/json"
+        "Authorization": f"Bearer {RESEND_API_KEY}",
+        "Content-Type": "application/json"
     }
 
     payload_admin = {
-        "sender": {"name": "SevaSetu", "email": "noreply@sevasetu.in"},
-        "to": [{"email": "sevasetu.services@gmail.com"}],
+        "from": "SevaSetu <noreply@sevasetu.in>",
+        "to": ["sevasetu.services@gmail.com"],
         "subject": subject_admin,
-        "htmlContent": html_content
+        "html": html_content
     }
 
     payload_user = {
-        "sender": {"name": "SevaSetu", "email": "noreply@sevasetu.in"},
-        "to": [{"email": email}],
+        "from": "SevaSetu <noreply@sevasetu.in>",
+        "to": [email],
         "subject": subject_user,
-        "htmlContent": html_content
+        "html": html_content
     }
 
     try:
-        # Send to admin
-        res_admin = requests.post(BREVO_API_URL, json=payload_admin, headers=headers)
-        # Send to user
-        res_user = requests.post(BREVO_API_URL, json=payload_user, headers=headers)
+        res_admin = requests.post(RESEND_URL, headers=headers, json=payload_admin)
+        res_user = requests.post(RESEND_URL, headers=headers, json=payload_user)
 
-        if res_admin.status_code == 201 and res_user.status_code == 201:
+        if res_admin.status_code == 200 and res_user.status_code == 200:
             return jsonify({
                 "success": True,
                 "appointment_id": appointment_id,
@@ -101,12 +91,11 @@ def send_booking():
         else:
             return jsonify({
                 "success": False,
-                "message": f"Error from Brevo API: {res_admin.text or res_user.text}"
+                "message": f"Error from Resend API: {res_admin.text or res_user.text}"
             })
 
     except Exception as e:
         return jsonify({"success": False, "message": str(e)})
-
 
 # -------------------------
 # Run Flask App
