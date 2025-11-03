@@ -5,19 +5,19 @@ import uuid
 import os
 
 # -------------------------
-# Flask App
+# 1️⃣ Create Flask app
 # -------------------------
 app = Flask(__name__)
 CORS(app)
 
 # -------------------------
-# Resend API Config
+# 2️⃣ Resend API
 # -------------------------
-RESEND_API_KEY = "re_Abdk5sTF_D4pzexty58ES13XFLw9SftZU"
-RESEND_URL = "https://api.resend.com/emails"
+RESEND_API_KEY = "re_dyYDqkzB_LkryfApwwFbZQuZBD45iFHbb"  # Replace with your Resend API key
+RESEND_API_URL = "https://api.resend.com/emails"
 
 # -------------------------
-# Booking Route
+# 3️⃣ Route for booking
 # -------------------------
 @app.route("/send-booking", methods=["POST"])
 def send_booking():
@@ -33,8 +33,12 @@ def send_booking():
     location = data.get("location", "")
     provider = data.get("provider", "Not assigned")
 
+    # Generate unique appointment ID
     appointment_id = str(uuid.uuid4()).split("-")[0].upper()
 
+    # -------------------------
+    # Email content
+    # -------------------------
     subject_admin = f"New Booking: {service} by {name} (ID: {appointment_id})"
     subject_user = f"Your Appointment Confirmation (ID: {appointment_id})"
 
@@ -59,28 +63,33 @@ def send_booking():
     </html>
     """
 
+    # -------------------------
+    # 4️⃣ Send email via Resend API
+    # -------------------------
     headers = {
         "Authorization": f"Bearer {RESEND_API_KEY}",
         "Content-Type": "application/json"
     }
 
     payload_admin = {
-        "from": "SevaSetu <noreply@sevasetu.in>",
+        "from": "SevaSetu <noreply@sevasetu.app>",
         "to": ["sevasetu.services@gmail.com"],
         "subject": subject_admin,
         "html": html_content
     }
 
     payload_user = {
-        "from": "SevaSetu <noreply@sevasetu.in>",
+        "from": "SevaSetu <noreply@sevasetu.app>",
         "to": [email],
         "subject": subject_user,
         "html": html_content
     }
 
     try:
-        res_admin = requests.post(RESEND_URL, headers=headers, json=payload_admin)
-        res_user = requests.post(RESEND_URL, headers=headers, json=payload_user)
+        # Send to admin
+        res_admin = requests.post(RESEND_API_URL, json=payload_admin, headers=headers)
+        # Send to user
+        res_user = requests.post(RESEND_API_URL, json=payload_user, headers=headers)
 
         if res_admin.status_code == 200 and res_user.status_code == 200:
             return jsonify({
@@ -91,11 +100,12 @@ def send_booking():
         else:
             return jsonify({
                 "success": False,
-                "message": f"Error from Resend API: {res_admin.text or res_user.text}"
+                "message": f"❌ Error from Resend API: {res_admin.text or res_user.text}"
             })
 
     except Exception as e:
         return jsonify({"success": False, "message": str(e)})
+
 
 # -------------------------
 # Run Flask App
