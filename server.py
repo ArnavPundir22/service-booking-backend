@@ -57,6 +57,7 @@ def send_booking():
             <p><strong>Date & Time:</strong> {date} at {time}</p>
             <p><strong>Location:</strong> {location}</p>
             <hr/>
+            <p style="color:gray;">For any query contact us at: <b>sevasetu.services@gmail.com</b>.</p>
             <p style="color:gray;">You will be contacted shortly for service charges and payment proceeding...</p>
             <p style="color:gray;">This is an automated booking notification from <b>SevaSetu</b>.</p>
         </body>
